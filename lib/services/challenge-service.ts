@@ -61,11 +61,11 @@ export class ChallengeService {
       container.appendChild(iFrame)
 
       const submitForm = new Promise<void>((resolve, reject) => {
-        form.onload = () => {
+        iFrame.onload = () => {
           resolve()
         }
 
-        form.onerror = (_) => {
+        iFrame.onerror = () => {
           reject(new Error('Failed to execute challenge'))
         }
 

@@ -9,7 +9,7 @@ export type UseApiOptions = {
 export class ApiService {
   constructor(
     private readonly publicKey: string,
-    private readonly baseUrl: string = 'https://api.sqala.tech/threedsecure/v1',
+    private readonly baseUrl: string = 'https://api.sqala.tech/core/v1/threedsecure',
   ) {}
 
   executeAuthentication(

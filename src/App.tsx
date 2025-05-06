@@ -6,11 +6,11 @@ import { useThreeDSecure } from './hooks/useThreeDSecure'
 function App() {
   const container = useRef<HTMLDivElement>(null)
   const [number, setNumber] = useState('')
-  const [expYear, setExpYear] = useState(33)
-  const [expMonth, setExpMonth] = useState(2)
-  const [holderName, setHolderName] = useState('HOLDER NAME')
-  const [cvv, setCvv] = useState('200')
-  const [value, setValue] = useState(100)
+  const [expYear, setExpYear] = useState(0)
+  const [expMonth, setExpMonth] = useState(0)
+  const [holderName, setHolderName] = useState('')
+  const [cvv, setCvv] = useState('')
+  const [value, setValue] = useState(0)
 
   const {
     isLoading,
@@ -18,7 +18,7 @@ function App() {
     cardVault,
     create,
   } = useCardVault({
-    publicKey: 'YOUR_PUBLIC_KEY_HERE',
+    publicKey: 'your-public-key',
   })
 
   const {
@@ -27,8 +27,8 @@ function App() {
     execute,
     error: threeDSecureError,
   } = useThreeDSecure({
-    baseUrl: 'https://api.sqala.tech/threedsecure/v1',
-    publicKey: 'YOUR_PUBLIC_KEY_HERE',
+    baseUrl: 'https://api.sqala.tech/core/v1/threedsecure',
+    publicKey: 'your-public-key',
     container: container as RefObject<HTMLDivElement>,
   })
 
@@ -115,7 +115,7 @@ function App() {
       {cardVaultError && <p>{cardVaultError}</p>}
       {threeDSecureError && <p>{threeDSecureError}</p>}
       {result && <pre style={{ flex: 1 }}>{JSON.stringify(result)}</pre>}
-      {isExecuting && <div style={{ flex: 1 }} ref={container} />}
+      {<div style={{ flex: 1 }} ref={container} />}
     </div>
   )
 }

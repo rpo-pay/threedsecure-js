@@ -37,7 +37,7 @@ async function PaymentComponent() {
   const container = document.getElementById('container');
   
   const threeDSecureService = new ThreeDSecureService({
-    baseUrl: 'https://api.sqala.tech/threedsecure/v1',
+    baseUrl: 'https://api.sqala.tech/core/v1/threedsecure',
     publicKey: 'your-public-key',
     container: container
   });
@@ -61,8 +61,8 @@ async function PaymentComponent() {
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/rpo-pay/threedsecure-react.git
-   cd threedsecure-react
+   git clone https://github.com/rpo-pay/threedsecure-js.git
+   cd threedsecure-js
    ```
 
 2. Install dependencies:

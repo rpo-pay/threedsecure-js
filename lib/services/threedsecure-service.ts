@@ -16,16 +16,18 @@ export type ThreeDSecureOptions = {
 }
 
 export class ThreeDSecureService {
-  constructor(
-    private readonly options: ThreeDSecureOptions = {
-      baseUrl: 'https://api.sqala.tech/threedsecure/v1',
-      publicKey: '',
-      container: document.createElement('div'),
-    },
-    private readonly apiService: ApiService = new ApiService(this.options.publicKey, this.options.baseUrl),
-    private readonly dsMethodService: DsMethodService = new DsMethodService(new Base64Encoder()),
-    private readonly challengeService: ChallengeService = new ChallengeService(new Base64Encoder()),
-  ) {}
+  private readonly container: HTMLElement
+  private readonly apiService: ApiService
+  private readonly dsMethodService: DsMethodService
+  private readonly challengeService: ChallengeService
+
+  constructor(options: ThreeDSecureOptions) {
+    console.log('ThreeDSecureService: constructor', options)
+    this.container = options.container
+    this.apiService = new ApiService(options.publicKey, options.baseUrl)
+    this.dsMethodService = new DsMethodService(new Base64Encoder())
+    this.challengeService = new ChallengeService(new Base64Encoder())
+  }
 
   async execute(
     parameters: ThreeDSecureParameters,
@@ -49,6 +51,7 @@ export class ThreeDSecureService {
         console.log('ThreeDSecureService: flowStep', authentication)
         const action = actionMapping.get(authentication.state)
         await action?.(authentication, abortController)
+        console.log('ThreeDSecureService: flowStep - end')
       }
 
       return {
@@ -69,15 +72,18 @@ export class ThreeDSecureService {
   }
 
   private handleResult(_: Authentication, abortController: AbortController) {
+    console.log('ThreeDSecureService: handleResult')
     abortController.abort()
     return Promise.resolve()
   }
 
   private handleDsMethod(authentication: Authentication, _: AbortController) {
-    return this.dsMethodService.executeDsMethod(authentication, this.options.container)
+    console.log('ThreeDSecureService: handleDsMethod', authentication)
+    return this.dsMethodService.executeDsMethod(authentication, this.container)
   }
 
   private handleChallenge(authentication: Authentication, _: AbortController) {
-    return this.challengeService.executeChallenge(authentication, this.options.container)
+    console.log('ThreeDSecureService: handleChallenge', authentication)
+    return this.challengeService.executeChallenge(authentication, this.container)
   }
 }

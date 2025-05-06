@@ -38,11 +38,11 @@ export class DsMethodService {
       container.appendChild(iFrame)
 
       const submitForm = new Promise<void>((resolve, reject) => {
-        form.onload = () => {
+        iFrame.onload = () => {
           resolve()
         }
 
-        form.onerror = () => {
+        iFrame.onerror = () => {
           reject(new Error('Failed to execute dsMethod'))
         }
 
