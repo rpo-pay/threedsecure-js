@@ -1,6 +1,6 @@
 {
   "name": "@sqala/threedsecure-js",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "description": "A vanilla library for implementing 3D Secure authentication flows in payment applications",
   "type": "module",
   "author": "Sqala",

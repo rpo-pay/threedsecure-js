@@ -1,7 +1,7 @@
 import { type RefObject, useEffect, useRef, useState } from 'react'
-import { useThreeDSecure } from '@sqala/threedsecure-react'
 import './App.css'
 import { useCardVault } from './hooks'
+import { useThreeDSecure } from './hooks/useThreeDSecure'
 
 function App() {
   const container = useRef<HTMLDivElement>(null)
@@ -12,26 +12,37 @@ function App() {
   const [cvv, setCvv] = useState('200')
   const [value, setValue] = useState(100)
 
-  const { isLoading, error: cardVaultError, cardVault, create } = useCardVault({
+  const {
+    isLoading,
+    error: cardVaultError,
+    cardVault,
+    create,
+  } = useCardVault({
     publicKey: 'YOUR_PUBLIC_KEY_HERE',
   })
 
-  const { status, isExecuting, isFinalized, result, execute, error: threeDSecureError } = useThreeDSecure({
+  const {
+    isExecuting,
+    result,
+    execute,
+    error: threeDSecureError,
+  } = useThreeDSecure({
+    baseUrl: 'https://api.sqala.tech/threedsecure/v1',
     publicKey: 'YOUR_PUBLIC_KEY_HERE',
     container: container as RefObject<HTMLDivElement>,
   })
 
   useEffect(() => {
-    if (!cardVault || isFinalized || isExecuting) {
+    if (!cardVault || isExecuting) {
       return
     }
 
     execute({
       id: cardVault.threeDSecureId,
     })
-  }, [cardVault, execute, isFinalized, isExecuting])
+  }, [cardVault, execute, isExecuting])
 
-  const handleExecute = async() => {
+  const handleExecute = async () => {
     await create({
       number,
       expYear,
@@ -100,7 +111,6 @@ function App() {
           Execute
         </button>
       </div>
-      {status && <p>{status}</p>}
       {cardVault && <p>3DS ID: {cardVault.threeDSecureId}</p>}
       {cardVaultError && <p>{cardVaultError}</p>}
       {threeDSecureError && <p>{threeDSecureError}</p>}
