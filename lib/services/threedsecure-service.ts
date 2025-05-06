@@ -4,9 +4,10 @@ import {
   type ThreeDSecureParameters,
   type ThreeDSecureResult,
 } from '../types'
-import type { ApiService } from './api-service'
-import type { DsMethodService } from './dsmethod-service'
-import type { ChallengeService } from './challenge-service'
+import { ApiService } from './api-service'
+import { DsMethodService } from './dsmethod-service'
+import { ChallengeService } from './challenge-service'
+import { Base64Encoder } from './base64-encoder'
 
 export type ThreeDSecureOptions = {
   baseUrl?: string
@@ -16,19 +17,23 @@ export type ThreeDSecureOptions = {
 
 export class ThreeDSecureService {
   constructor(
-    private readonly container: HTMLElement,
-    private readonly apiService: ApiService,
-    private readonly dsMethodService: DsMethodService,
-    private readonly challengeService: ChallengeService,
+    private readonly options: ThreeDSecureOptions = {
+      baseUrl: 'https://api.sqala.tech/threedsecure/v1',
+      publicKey: '',
+      container: document.createElement('div'),
+    },
+    private readonly apiService: ApiService = new ApiService(this.options.publicKey, this.options.baseUrl),
+    private readonly dsMethodService: DsMethodService = new DsMethodService(new Base64Encoder()),
+    private readonly challengeService: ChallengeService = new ChallengeService(new Base64Encoder()),
   ) {}
 
   async execute(
     parameters: ThreeDSecureParameters,
     abortController: AbortController = new AbortController(),
   ): Promise<ThreeDSecureResult> {
-    console.log('useThreeDSecure: execute')
+    console.log('ThreeDSecureService: execute')
     try {
-      console.log('useThreeDSecure: setBrowserData', parameters)
+      console.log('ThreeDSecureService: setBrowserData', parameters)
       await this.apiService.setBrowserData(parameters)
 
       const actionMapping = new Map([
@@ -41,7 +46,7 @@ export class ThreeDSecureService {
 
       let authentication!: Authentication
       for await (authentication of this.apiService.executeAuthentication(parameters, abortController.signal)) {
-        console.log('useThreeDSecure: flowStep', authentication)
+        console.log('ThreeDSecureService: flowStep', authentication)
         const action = actionMapping.get(authentication.state)
         await action?.(authentication, abortController)
       }
@@ -55,11 +60,11 @@ export class ThreeDSecureService {
         dsTransId: authentication.dsTransId,
       }
     } catch (error) {
-      console.log('useThreeDSecure: error', error)
+      console.log('ThreeDSecureService: error', error)
       abortController.abort()
       throw error
     } finally {
-      console.log('useThreeDSecure: finally')
+      console.log('ThreeDSecureService: finally')
     }
   }
 
@@ -69,10 +74,10 @@ export class ThreeDSecureService {
   }
 
   private handleDsMethod(authentication: Authentication, _: AbortController) {
-    return this.dsMethodService.executeDsMethod(authentication, this.container)
+    return this.dsMethodService.executeDsMethod(authentication, this.options.container)
   }
 
   private handleChallenge(authentication: Authentication, _: AbortController) {
-    return this.challengeService.executeChallenge(authentication, this.container)
+    return this.challengeService.executeChallenge(authentication, this.options.container)
   }
 }

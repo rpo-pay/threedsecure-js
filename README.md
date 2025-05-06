@@ -4,18 +4,17 @@
 ![Visual Studio Code](https://img.shields.io/badge/Visual%20Studio%20Code-0078d7.svg?style=for-the-badge&logo=visual-studio-code&logoColor=white)
 
 
-# 3D Secure React Library
+# 3D Secure Vanilla Library
 
-A modern React library that simplifies the integration of 3D Secure (3DS) authentication for secure payment processing in web applications.
+A modern Vanilla library that simplifies the integration of 3D Secure (3DS) authentication for secure payment processing in web applications.
 
 ## Overview
 
-This library provides a set of React hooks and utilities to implement 3D Secure authentication flows in your payment applications. It supports the full 3DS authentication lifecycle including directory server interactions, challenges, and result handling.
+This library provides a set of utilities to implement 3D Secure authentication flows in your payment applications. It supports the full 3DS authentication lifecycle including directory server interactions, challenges, and result handling.
 
 ## Features
 
 - Complete 3D Secure authentication flow
-- React hooks-based API
 - Handles the entire authentication lifecycle
 - Type-safe implementation with TypeScript
 - Responsive challenge rendering
@@ -24,59 +23,30 @@ This library provides a set of React hooks and utilities to implement 3D Secure 
 ## Installation
 
 ```bash
-npm install @sqala/threedsecure-react
+npm install @sqala/threedsecure-js
 # or
-yarn add @sqala/threedsecure-react
+yarn add @sqala/threedsecure-js
 ```
 
 ## Quick Start
 
 ```tsx
-import { useRef } from 'react';
-import { useThreeDSecure } from '@sqala/threedsecure-react';
+import { ThreeDSecureService } from '@sqala/threedsecure-js';
 
-function PaymentComponent() {
-  const containerRef = useRef<HTMLDivElement>(null);
+async function PaymentComponent() {
+  const container = document.getElementById('container');
   
-  const { isExecuting, status, result, execute, cancel } = useThreeDSecure({
+  const threeDSecureService = new ThreeDSecureService({
     baseUrl: 'https://api.sqala.tech/threedsecure/v1',
     publicKey: 'your-public-key',
-    container: containerRef
+    container: container
   });
 
-  const handleAuthentication = async () => {
-    await execute({
-      id: 'authentication-id' // Unique identifier for the authentication
-    });
-  };
+  const result = await threeDSecureService.execute({
+    id: 'authentication-id' // Unique identifier for the authentication
+  });
 
-  return (
-    <div>
-      <button 
-        onClick={handleAuthentication}
-        disabled={isExecuting}
-      >
-        Process Payment
-      </button>
-      
-      {isExecuting && <p>Processing payment authentication...</p>}
-      {status && <p>Current status: {status}</p>}
-      
-      {/* Container for 3DS challenges */}
-      <div ref={containerRef} style={{ width: '100%', height: '400px' }} />
-      
-      {isExecuting && (
-        <button onClick={cancel}>Cancel</button>
-      )}
-      
-      {result && (
-        <div>
-          <h3>Authentication Result</h3>
-          <pre>{JSON.stringify(result, null, 2)}</pre>
-        </div>
-      )}
-    </div>
-  );
+  console.log(result);
 }
 ```
 
@@ -117,9 +87,9 @@ This will concurrently:
 ### Project Structure
 
 ```
-threedsecure-react/
+threedsecure-js/
 ├── lib/                  # Library source code
-│   ├── hooks/            # React hooks
+│   ├── services/         # Service implementation
 │   ├── models/           # Data models
 │   ├── types/            # TypeScript type definitions
 │   └── main.ts           # Main entry point
