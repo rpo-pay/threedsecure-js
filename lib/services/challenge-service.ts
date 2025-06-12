@@ -1,4 +1,5 @@
-import type { Authentication } from '../types'
+import assert from './assert'
+import type { Authentication, Logger } from '../types'
 import { Base64Encoder } from './base64-encoder'
 import { v4 } from 'uuid'
 
@@ -11,7 +12,13 @@ export enum ChallengeWindowSize {
 }
 
 export class ChallengeService {
-  constructor(private readonly base64Encoder = new Base64Encoder()) {}
+  private iFrame!: HTMLIFrameElement
+  private form!: HTMLFormElement
+
+  constructor(
+    private readonly logger: Logger,
+    private readonly base64Encoder = new Base64Encoder(),
+  ) {}
 
   private getChallengeWindowSize(container: HTMLElement) {
     return (
@@ -25,27 +32,29 @@ export class ChallengeService {
 
   async executeChallenge(authentication: Authentication, container: HTMLElement) {
     try {
+      assert(authentication.acsUrl, 'acsUrl is required')
+
       container.style.position = 'relative'
 
-      const iFrame = document.createElement('iframe')
-      iFrame.name = v4()
-      iFrame.style.width = '100%'
-      iFrame.style.height = '100%'
-      iFrame.style.position = 'absolute'
-      iFrame.style.top = '0'
-      iFrame.style.left = '0'
+      this.iFrame = document.createElement('iframe')
+      this.iFrame.name = v4()
+      this.iFrame.style.width = '100%'
+      this.iFrame.style.height = '100%'
+      this.iFrame.style.position = 'absolute'
+      this.iFrame.style.top = '0'
+      this.iFrame.style.left = '0'
 
-      const form = document.createElement('form')
-      form.style.visibility = 'hidden'
-      form.name = v4()
-      form.target = iFrame.name
-      form.action = authentication.acsUrl
-      form.method = 'POST'
+      this.form = document.createElement('form')
+      this.form.style.visibility = 'hidden'
+      this.form.name = v4()
+      this.form.target = this.iFrame.name
+      this.form.action = authentication.acsUrl
+      this.form.method = 'POST'
 
       const input = document.createElement('input')
       input.type = 'hidden'
       input.name = 'creq'
-      form.appendChild(input)
+      this.form.appendChild(input)
 
       const data = {
         threeDSServerTransID: authentication.transactionId,
@@ -57,25 +66,38 @@ export class ChallengeService {
 
       input.value = this.base64Encoder.encode(data)
 
-      container.appendChild(form)
-      container.appendChild(iFrame)
+      container.appendChild(this.form)
+      container.appendChild(this.iFrame)
 
       const submitForm = new Promise<void>((resolve, reject) => {
-        iFrame.onload = () => {
+        this.iFrame.onload = () => {
           resolve()
         }
 
-        iFrame.onerror = () => {
+        this.iFrame.onerror = () => {
           reject(new Error('Failed to execute challenge'))
         }
 
-        form.submit()
+        this.form.submit()
+        // Execute challenge only once, be resilient to PENDING_CHALLENGE event
+        // being sent more than once, just do a no-op afterwards
+        this.form.setAttribute('data-submitted', 'true')
       })
 
       await submitForm
     } catch (error) {
-      console.log('ChallengeService: error', error)
+      this.logger('ChallengeService: error', error)
       throw error
+    }
+  }
+
+  clean() {
+    this.logger('ChallengeService: clean')
+    try {
+      this.iFrame?.remove()
+      this.form?.remove()
+    } catch (error) {
+      this.logger('ChallengeService: clean - error', error)
     }
   }
 }
