@@ -17,7 +17,7 @@ export class ApiService {
     parameters: ThreeDSecureParameters,
     abortSignal: AbortSignal,
   ): AsyncIterableIterator<Authentication> {
-    const eventSource = new EventSource(`${this.baseUrl}/${parameters.id}/listen?publicKey=${this.publicKey}&accountId=5ad5126f-e474-40d7-9287-f8382444fe37`)
+    const eventSource = new EventSource(`${this.baseUrl}/${parameters.id}/listen?publicKey=${this.publicKey}`)
     const bucket = new Bucket<Authentication>()
 
     const logger = this.logger.bind(this)
@@ -74,7 +74,6 @@ export class ApiService {
     const allowedBrowserColorDepth = [48, 32, 24, 16, 15, 8, 4, 1]
     const colorDepth = allowedBrowserColorDepth.find((x) => x <= screen.colorDepth) ?? 48
     const browser = {
-      accountId: '5ad5126f-e474-40d7-9287-f8382444fe37',
       javaEnabled: true,
       javascriptEnabled: true,
       language: navigator.language,
@@ -88,7 +87,7 @@ export class ApiService {
     }
     this.logger('ApiService: setBrowserData - browser', browser)
 
-    const response = await fetch(`${this.baseUrl}/${parameters.id}/browser?publicKey=${this.publicKey}&accountId=5ad5126f-e474-40d7-9287-f8382444fe37`, {
+    const response = await fetch(`${this.baseUrl}/${parameters.id}/browser?publicKey=${this.publicKey}`, {
       method: 'PATCH',
       headers: {
         'Content-Type': 'application/json',
