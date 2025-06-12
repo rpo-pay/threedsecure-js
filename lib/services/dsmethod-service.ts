@@ -17,6 +17,10 @@ export class DsMethodService {
       assert(authentication.dsMethodUrl, 'dsMethodUrl is required')
       assert(authentication.dsMethodCallbackUrl, 'dsMethodCallbackUrl is required')
 
+      if (this.form?.hasAttribute('data-submitted')) {
+        return
+      }
+
       this.iFrame = document.createElement('iframe')
       this.iFrame.name = v4()
       this.iFrame.style.visibility = 'hidden'

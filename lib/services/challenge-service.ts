@@ -34,6 +34,10 @@ export class ChallengeService {
     try {
       assert(authentication.acsUrl, 'acsUrl is required')
 
+      if (this.form?.hasAttribute('data-submitted')) {
+        return
+      }
+
       container.style.position = 'relative'
 
       this.iFrame = document.createElement('iframe')
