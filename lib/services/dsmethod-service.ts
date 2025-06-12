@@ -1,27 +1,37 @@
-import type { Authentication } from '../types'
+import assert from './assert'
+import type { Authentication, Logger } from '../types'
 import type { Base64Encoder } from './base64-encoder'
 import { v4 } from 'uuid'
 
 export class DsMethodService {
-  constructor(private readonly base64Encoder: Base64Encoder) {}
+  private iFrame!: HTMLIFrameElement
+  private form!: HTMLFormElement
+
+  constructor(
+    private readonly logger: Logger,
+    private readonly base64Encoder: Base64Encoder,
+  ) {}
 
   async executeDsMethod(authentication: Authentication, container: HTMLElement) {
     try {
-      const iFrame = document.createElement('iframe')
-      iFrame.name = v4()
-      iFrame.style.visibility = 'hidden'
-      iFrame.style.position = 'absolute'
-      iFrame.style.top = '0'
-      iFrame.style.left = '0'
-      iFrame.width = '0'
-      iFrame.height = '0'
+      assert(authentication.dsMethodUrl, 'dsMethodUrl is required')
+      assert(authentication.dsMethodCallbackUrl, 'dsMethodCallbackUrl is required')
 
-      const form = document.createElement('form')
-      form.style.visibility = 'hidden'
-      form.name = v4()
-      form.target = iFrame.name
-      form.action = authentication.dsMethodUrl
-      form.method = 'POST'
+      this.iFrame = document.createElement('iframe')
+      this.iFrame.name = v4()
+      this.iFrame.style.visibility = 'hidden'
+      this.iFrame.style.position = 'absolute'
+      this.iFrame.style.top = '0'
+      this.iFrame.style.left = '0'
+      this.iFrame.width = '0'
+      this.iFrame.height = '0'
+
+      this.form = document.createElement('form')
+      this.form.style.visibility = 'hidden'
+      this.form.name = v4()
+      this.form.target = this.iFrame.name
+      this.form.action = authentication.dsMethodUrl
+      this.form.method = 'POST'
 
       const input = document.createElement('input')
       input.type = 'hidden'
@@ -32,27 +42,40 @@ export class DsMethodService {
         threeDSMethodNotificationURL: authentication.dsMethodCallbackUrl,
       })
 
-      form.appendChild(input)
+      this.form.appendChild(input)
 
-      container.appendChild(form)
-      container.appendChild(iFrame)
+      container.appendChild(this.form)
+      container.appendChild(this.iFrame)
 
       const submitForm = new Promise<void>((resolve, reject) => {
-        iFrame.onload = () => {
+        this.iFrame.onload = () => {
           resolve()
         }
 
-        iFrame.onerror = () => {
+        this.iFrame.onerror = () => {
           reject(new Error('Failed to execute dsMethod'))
         }
 
-        form.submit()
+        this.form.submit()
+        // Execute challenge only once, be resilient to PENDING_CHALLENGE event
+        // being sent more than once, just do a no-op afterwards
+        this.form.setAttribute('data-submitted', 'true')
       })
 
       await submitForm
     } catch (error) {
-      console.log('DSMethodService: error', error)
+      this.logger('DSMethodService: error', error)
       throw error
+    }
+  }
+
+  clean() {
+    this.logger('DSMethodService: clean')
+    try {
+      this.iFrame?.remove()
+      this.form?.remove()
+    } catch (error) {
+      this.logger('DSMethodService: clean - error', error)
     }
   }
 }
