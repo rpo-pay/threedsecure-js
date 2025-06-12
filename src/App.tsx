@@ -1,7 +1,8 @@
-import { type RefObject, useEffect, useRef, useState } from 'react'
+import { type RefObject, useCallback, useEffect, useRef, useState } from 'react'
 import './App.css'
 import { useCardVault } from './hooks'
 import { useThreeDSecure } from './hooks/useThreeDSecure'
+import { ThreeDSChallengeOptions } from '@sqala/threedsecure-js'
 
 function App() {
   const container = useRef<HTMLDivElement>(null)
@@ -10,7 +11,8 @@ function App() {
   const [expMonth, setExpMonth] = useState(0)
   const [holderName, setHolderName] = useState('')
   const [cvv, setCvv] = useState('')
-  const [value, setValue] = useState(0)
+  const [amount, setAmount] = useState(0)
+  const [installments, setInstallments] = useState(0)
 
   const {
     isLoading,
@@ -18,29 +20,35 @@ function App() {
     cardVault,
     create,
   } = useCardVault({
-    publicKey: 'your-public-key',
+    publicKey: 'YOUR_PUBLIC_KEY',
   })
 
   const {
-    isExecuting,
     result,
     execute,
     error: threeDSecureError,
   } = useThreeDSecure({
-    baseUrl: 'https://api.sqala.tech/core/v1/threedsecure',
-    publicKey: 'your-public-key',
+    publicKey: 'YOUR_PUBLIC_KEY',
     container: container as RefObject<HTMLDivElement>,
   })
 
+  const execute3DSecure = useCallback(async (threeDSecureId: string, abortController: AbortController) => {
+    await execute({
+      id: threeDSecureId,
+    }, abortController)
+  }, [execute])
+
   useEffect(() => {
-    if (!cardVault || isExecuting) {
+    if (!cardVault) {
       return
     }
 
-    execute({
-      id: cardVault.threeDSecureId,
-    })
-  }, [cardVault, execute, isExecuting])
+    const abortController = new AbortController()
+
+    execute3DSecure(cardVault.threeDSecureId, abortController)
+
+    return () => abortController.abort()
+  }, [cardVault, execute3DSecure])
 
   const handleExecute = async () => {
     await create({
@@ -50,7 +58,9 @@ function App() {
       holderName,
       cvv,
       threeDSecure: {
-        value,
+        amount,
+        installments,
+        challengeOptions: ThreeDSChallengeOptions.ChallengeNotRequestedDataShareOnly,
       },
     })
   }
@@ -103,11 +113,18 @@ function App() {
         <input
           className="input"
           type="number"
-          value={value}
-          onChange={(e) => setValue(Number.parseInt(e.target.value))}
-          placeholder="Enter card value"
+          value={amount}
+          onChange={(e) => setAmount(Number.parseInt(e.target.value))}
+          placeholder="Enter card amount"
         />
-        <button className="button" type="button" onClick={handleExecute} disabled={isLoading || isExecuting}>
+        <input
+          className="input"
+          type="number"
+          value={installments}
+          onChange={(e) => setInstallments(Number.parseInt(e.target.value))}
+          placeholder="Enter card installments"
+        />
+        <button className="button" type="button" onClick={handleExecute} disabled={isLoading}>
           Execute
         </button>
       </div>

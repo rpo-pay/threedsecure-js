@@ -1,6 +1,7 @@
 import {
   type Authentication,
   AuthenticationState,
+  type Logger,
   type ThreeDSecureParameters,
   type ThreeDSecureResult,
 } from '../types'
@@ -8,6 +9,7 @@ import { ApiService } from './api-service'
 import { DsMethodService } from './dsmethod-service'
 import { ChallengeService } from './challenge-service'
 import { Base64Encoder } from './base64-encoder'
+import { v4 } from 'uuid'
 
 export type ThreeDSecureOptions = {
   baseUrl?: string
@@ -20,39 +22,51 @@ export class ThreeDSecureService {
   private readonly apiService: ApiService
   private readonly dsMethodService: DsMethodService
   private readonly challengeService: ChallengeService
+  private readonly actionMapping = new Map([
+    [AuthenticationState.PendingDirectoryServer, this.handleDsMethod.bind(this)],
+    [AuthenticationState.PendingChallenge, this.handleChallenge.bind(this)],
+    [AuthenticationState.Failed, this.handleResult.bind(this)],
+    [AuthenticationState.Completed, this.handleResult.bind(this)],
+    [AuthenticationState.AuthorizedToAttempt, this.handleResult.bind(this)],
+  ])
 
-  constructor(options: ThreeDSecureOptions) {
-    console.log('ThreeDSecureService: constructor', options)
+  constructor(
+    options: ThreeDSecureOptions,
+    private readonly logger: Logger = ThreeDSecureService.logger(),
+  ) {
+    this.logger('ThreeDSecureService: constructor', options)
     this.container = options.container
-    this.apiService = new ApiService(options.publicKey, options.baseUrl)
-    this.dsMethodService = new DsMethodService(new Base64Encoder())
-    this.challengeService = new ChallengeService(new Base64Encoder())
+    this.apiService = new ApiService(this.logger, options.publicKey, options.baseUrl)
+    this.dsMethodService = new DsMethodService(this.logger, new Base64Encoder())
+    this.challengeService = new ChallengeService(this.logger, new Base64Encoder())
   }
 
   async execute(
     parameters: ThreeDSecureParameters,
     abortController: AbortController = new AbortController(),
   ): Promise<ThreeDSecureResult> {
-    console.log('ThreeDSecureService: execute')
-    try {
-      console.log('ThreeDSecureService: setBrowserData', parameters)
-      await this.apiService.setBrowserData(parameters)
+    this.logger('ThreeDSecureService: execute')
 
-      const actionMapping = new Map([
-        [AuthenticationState.PendingDirectoryServer, this.handleDsMethod.bind(this)],
-        [AuthenticationState.PendingChallenge, this.handleChallenge.bind(this)],
-        [AuthenticationState.Failed, this.handleResult.bind(this)],
-        [AuthenticationState.Completed, this.handleResult.bind(this)],
-        [AuthenticationState.AuthorizedToAttempt, this.handleResult.bind(this)],
-      ])
+    const fiveMinutes = 5 * 60 * 1000
+
+    this.logger('ThreeDSecureService: execute - configuring timeout')
+    const timeoutId = setTimeout(() => {
+      abortController.abort('timeout')
+    }, fiveMinutes)
+
+    try {
+      this.logger('ThreeDSecureService: setBrowserData', parameters)
+      await this.apiService.setBrowserData(parameters)
 
       let authentication!: Authentication
       for await (authentication of this.apiService.executeAuthentication(parameters, abortController.signal)) {
-        console.log('ThreeDSecureService: flowStep', authentication)
-        const action = actionMapping.get(authentication.state)
+        this.logger('ThreeDSecureService: flowStep', authentication)
+        const action = this.actionMapping.get(authentication.state)
         await action?.(authentication, abortController)
-        console.log('ThreeDSecureService: flowStep - end')
+        this.logger('ThreeDSecureService: flowStep - end')
       }
+
+      abortController.abort('completed')
 
       return {
         id: authentication.id,
@@ -61,29 +75,43 @@ export class ThreeDSecureService {
         authenticationValue: authentication.authenticationValue,
         eci: authentication.eci,
         dsTransId: authentication.dsTransId,
+        protocolVersion: authentication.protocolVersion,
+        failReason: authentication.failReason,
+        isSuccess: () =>
+          authentication.state === AuthenticationState.Completed ||
+          authentication.state === AuthenticationState.AuthorizedToAttempt,
       }
     } catch (error) {
-      console.log('ThreeDSecureService: error', error)
-      abortController.abort()
+      this.logger('ThreeDSecureService: error', error)
+      abortController.abort('error')
       throw error
     } finally {
-      console.log('ThreeDSecureService: finally')
+      clearTimeout(timeoutId)
+      this.challengeService.clean()
+      this.dsMethodService.clean()
+      this.logger('ThreeDSecureService: finally')
     }
   }
 
-  private handleResult(_: Authentication, abortController: AbortController) {
-    console.log('ThreeDSecureService: handleResult')
-    abortController.abort()
+  private handleResult(authentication: Authentication, abortController: AbortController) {
+    this.logger('ThreeDSecureService: handleResult', authentication)
+    abortController.abort('completed')
     return Promise.resolve()
   }
 
   private handleDsMethod(authentication: Authentication, _: AbortController) {
-    console.log('ThreeDSecureService: handleDsMethod', authentication)
+    this.logger('ThreeDSecureService: handleDsMethod', authentication)
     return this.dsMethodService.executeDsMethod(authentication, this.container)
   }
 
   private handleChallenge(authentication: Authentication, _: AbortController) {
-    console.log('ThreeDSecureService: handleChallenge', authentication)
+    this.logger('ThreeDSecureService: handleChallenge', authentication)
     return this.challengeService.executeChallenge(authentication, this.container)
+  }
+
+  private static logger(id: string = v4()) {
+    return (message: string, ...rest: unknown[]) => {
+      console.log(`[${id}]: ${message}`, ...rest)
+    }
   }
 }

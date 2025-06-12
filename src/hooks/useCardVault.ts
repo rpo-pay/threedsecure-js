@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { ThreeDSChallengeOptions } from '@sqala/threedsecure-js'
 
 export type UseCardVaultOptions = {
   baseUrl?: string
@@ -17,7 +18,34 @@ export type CardVaultRequest = {
   holderName: string
   cvv: string
   threeDSecure: {
-    value: number
+    amount: number
+    installments?: number
+    currency?: string
+    challengeOptions?: ThreeDSChallengeOptions
+    billingAddress?: {
+      street: string
+      number?: string
+      complement?: string
+      neighborhood: string
+      city: string
+      state: string
+      country: string
+      postalCode: string
+    }
+    shippingAddress?: {
+      street: string
+      number?: string
+      complement?: string
+      neighborhood: string
+      city: string
+      state: string
+      country: string
+      postalCode: string
+    }
+    payer?: {
+      email: string
+      mobile: string
+    }
   }
 }
 
@@ -38,7 +66,7 @@ export const useCardVault = ({ baseUrl = 'https://api.sqala.tech/core/v1', publi
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(request)
+        body: JSON.stringify(request),
       })
       const data = await response.json()
       setCardVault(data)
@@ -53,6 +81,6 @@ export const useCardVault = ({ baseUrl = 'https://api.sqala.tech/core/v1', publi
     error,
     isLoading,
     cardVault,
-    create
+    create,
   }
 }

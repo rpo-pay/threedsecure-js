@@ -1,4 +1,4 @@
-import type { Authentication, ThreeDSecureParameters } from '../types'
+import { AuthenticationState, type Authentication, type Logger, type ThreeDSecureParameters } from '../types'
 import { Bucket } from '../models'
 
 export type UseApiOptions = {
@@ -8,8 +8,9 @@ export type UseApiOptions = {
 
 export class ApiService {
   constructor(
+    private readonly logger: Logger,
     private readonly publicKey: string,
-    private readonly baseUrl: string = 'https://api.sqala.tech/core/v1/threedsecure',
+    private readonly baseUrl: string = 'https://api.sqala.tech/core/v1/threedsecure'
   ) {}
 
   executeAuthentication(
@@ -18,33 +19,61 @@ export class ApiService {
   ): AsyncIterableIterator<Authentication> {
     const eventSource = new EventSource(`${this.baseUrl}/${parameters.id}/listen?publicKey=${this.publicKey}`)
     const bucket = new Bucket<Authentication>()
-    eventSource.onmessage = (event) => {
-      const parsedEvent = JSON.parse(event.data) as Authentication
-      console.log('useApi: executeAuthentication - onmessage', parsedEvent)
-      bucket.push(parsedEvent)
+
+    const logger = this.logger.bind(this)
+
+    const close = () => {
+      try {
+        bucket.close()
+        eventSource.close()
+      } catch (error) {
+        logger('ApiService: executeAuthentication - close - error', error)
+      }
     }
-    eventSource.onerror = (error) => {
-      console.log('useApi: executeAuthentication - onerror', error)
-      bucket.pushError(new Error('Failed to connect to event source'))
-    }
-    abortSignal.addEventListener('abort', () => {
-      console.log('useApi: executeAuthentication - abort')
-      bucket.close()
-      eventSource.close()
+
+    eventSource.addEventListener('message', (event) => {
+      try {
+        const parsedEvent = JSON.parse(event.data) as Authentication
+        logger('ApiService: executeAuthentication - onmessage', parsedEvent)
+        bucket.push(parsedEvent)
+
+        if (
+          parsedEvent.state === AuthenticationState.Failed ||
+          parsedEvent.state === AuthenticationState.AuthorizedToAttempt ||
+          parsedEvent.state === AuthenticationState.Completed ||
+          abortSignal.aborted
+        ) {
+          close()
+        }
+      } catch (error) {
+        logger('ApiService: executeAuthentication - onmessage - error', error)
+      }
     })
+
+    eventSource.addEventListener('close', () => {
+      logger('ApiService: executeAuthentication - onclose')
+      close()
+    })
+
+    eventSource.addEventListener('error', (error) => {
+      logger('ApiService: executeAuthentication - onerror', error)
+      close()
+    })
+    
+    abortSignal.addEventListener('abort', () => {
+      logger('ApiService: executeAuthentication - abort')
+      close()
+    })
+
     return bucket.iterator
   }
 
   async setBrowserData(parameters: ThreeDSecureParameters) {
-    console.log('useApi: setBrowserData', parameters)
-    const ipResponse = await fetch('https://geolocation-db.com/json/')
-    const ipResponseData = await ipResponse.json()
-    console.log('useApi: setBrowserData - ipResponseData', ipResponseData)
+    this.logger('ApiService: setBrowserData', parameters)
 
     const allowedBrowserColorDepth = [48, 32, 24, 16, 15, 8, 4, 1]
     const colorDepth = allowedBrowserColorDepth.find((x) => x <= screen.colorDepth) ?? 48
     const browser = {
-      ip: ipResponseData.IPv4,
       javaEnabled: true,
       javascriptEnabled: true,
       language: navigator.language,
@@ -56,7 +85,7 @@ export class ApiService {
       acceptHeader:
         'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
     }
-    console.log('useApi: setBrowserData - browser', browser)
+    this.logger('ApiService: setBrowserData - browser', browser)
 
     const response = await fetch(`${this.baseUrl}/${parameters.id}/browser?publicKey=${this.publicKey}`, {
       method: 'PATCH',
@@ -65,7 +94,7 @@ export class ApiService {
       },
       body: JSON.stringify(browser),
     })
-    console.log('useApi: setBrowserData - response', response)
+    this.logger('ApiService: setBrowserData - response', response)
     if (!response.ok) {
       throw new Error('Failed to set browser data')
     }
