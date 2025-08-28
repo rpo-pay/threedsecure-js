@@ -1,1 +1,1 @@
-export type Logger = (message: string, ...rest: unknown[]) => void
+export type Logger = (entrypoint: string, message: string, ...rest: unknown[]) => void

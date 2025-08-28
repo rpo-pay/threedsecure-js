@@ -1,5 +1,5 @@
-import { AuthenticationState, type Authentication, type Logger, type ThreeDSecureParameters } from '../types'
 import { Bucket } from '../models'
+import { AuthenticationState, type Authentication, type Logger, type ThreeDSecureParameters } from '../types'
 
 export type UseApiOptions = {
   baseUrl?: string
@@ -27,14 +27,14 @@ export class ApiService {
         bucket.close()
         eventSource.close()
       } catch (error) {
-        logger('ApiService: executeAuthentication - close - error', error)
+        logger('ApiService.executeAuthentication', 'close - error', error)
       }
     }
 
     eventSource.addEventListener('message', (event) => {
       try {
         const parsedEvent = JSON.parse(event.data) as Authentication
-        logger('ApiService: executeAuthentication - onmessage', parsedEvent)
+        logger('ApiService.executeAuthentication', 'onmessage', parsedEvent)
         bucket.push(parsedEvent)
 
         if (
@@ -46,22 +46,22 @@ export class ApiService {
           close()
         }
       } catch (error) {
-        logger('ApiService: executeAuthentication - onmessage - error', error)
+        logger('ApiService.executeAuthentication', 'onmessage - error', error)
       }
     })
 
     eventSource.addEventListener('close', () => {
-      logger('ApiService: executeAuthentication - onclose')
+      logger('ApiService.executeAuthentication', 'onclose')
       close()
     })
 
     eventSource.addEventListener('error', (error) => {
-      logger('ApiService: executeAuthentication - onerror', error)
+      logger('ApiService.executeAuthentication', 'onerror', error)
       close()
     })
-    
+
     abortSignal.addEventListener('abort', () => {
-      logger('ApiService: executeAuthentication - abort')
+      logger('ApiService.executeAuthentication', 'abort')
       close()
     })
 
@@ -69,7 +69,7 @@ export class ApiService {
   }
 
   async setBrowserData(parameters: ThreeDSecureParameters) {
-    this.logger('ApiService: setBrowserData', parameters)
+    this.logger('ApiService.setBrowserData', 'starting', parameters)
 
     const allowedBrowserColorDepth = [48, 32, 24, 16, 15, 8, 4, 1]
     const colorDepth = allowedBrowserColorDepth.find((x) => x <= screen.colorDepth) ?? 48
@@ -85,7 +85,7 @@ export class ApiService {
       acceptHeader:
         'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
     }
-    this.logger('ApiService: setBrowserData - browser', browser)
+    this.logger('ApiService.setBrowserData', 'browser', browser)
 
     const response = await fetch(`${this.baseUrl}/${parameters.id}/browser?publicKey=${this.publicKey}`, {
       method: 'PATCH',
@@ -94,7 +94,7 @@ export class ApiService {
       },
       body: JSON.stringify(browser),
     })
-    this.logger('ApiService: setBrowserData - response', response)
+    this.logger('ApiService.setBrowserData', 'response', response)
     if (!response.ok) {
       throw new Error('Failed to set browser data')
     }

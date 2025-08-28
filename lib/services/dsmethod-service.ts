@@ -1,7 +1,7 @@
-import assert from './assert'
-import type { Authentication, Logger } from '../types'
-import type { Base64Encoder } from './base64-encoder'
 import { v4 } from 'uuid'
+import type { Authentication, IFrameEvents, Logger } from '../types'
+import assert from './assert'
+import type { Base64Encoder } from './base64-encoder'
 
 export class DsMethodService {
   private iFrame!: HTMLIFrameElement
@@ -10,6 +10,7 @@ export class DsMethodService {
   constructor(
     private readonly logger: Logger,
     private readonly base64Encoder: Base64Encoder,
+    private readonly iframeEvents?: IFrameEvents,
   ) {}
 
   async executeDsMethod(authentication: Authentication, container: HTMLElement) {
@@ -18,6 +19,7 @@ export class DsMethodService {
       assert(authentication.dsMethodCallbackUrl, 'dsMethodCallbackUrl is required')
 
       if (this.form?.hasAttribute('data-submitted')) {
+        this.logger('DsMethodService.executeDsMethod', 'form already submitted')
         return
       }
 
@@ -29,6 +31,7 @@ export class DsMethodService {
       this.iFrame.style.left = '0'
       this.iFrame.width = '0'
       this.iFrame.height = '0'
+      this.iframeEvents?.onCreate?.(this.iFrame)
 
       this.form = document.createElement('form')
       this.form.style.visibility = 'hidden'
@@ -47,16 +50,20 @@ export class DsMethodService {
       })
 
       this.form.appendChild(input)
-
       container.appendChild(this.form)
       container.appendChild(this.iFrame)
+      this.iframeEvents?.onAppend?.(this.iFrame)
 
       const submitForm = new Promise<void>((resolve, reject) => {
         this.iFrame.onload = () => {
+          this.logger('DSMethodService.executeDsMethod', 'iframe loaded', this.iFrame)
+          this.iframeEvents?.onLoad?.(this.iFrame)
           resolve()
         }
 
         this.iFrame.onerror = () => {
+          this.logger('DSMethodService.executeDsMethod', 'iframe error', this.iFrame)
+          this.iframeEvents?.onError?.(this.iFrame)
           reject(new Error('Failed to execute dsMethod'))
         }
 
@@ -68,18 +75,19 @@ export class DsMethodService {
 
       await submitForm
     } catch (error) {
-      this.logger('DSMethodService: error', error)
+      this.logger('DSMethodService.executeDsMethod', 'error', error)
       throw error
     }
   }
 
   clean() {
-    this.logger('DSMethodService: clean')
+    this.logger('DSMethodService.clean', 'cleaning')
     try {
       this.iFrame?.remove()
+      this.iframeEvents?.onRemove?.(this.iFrame)
       this.form?.remove()
     } catch (error) {
-      this.logger('DSMethodService: clean - error', error)
+      this.logger('DSMethodService.clean', 'cleaning - error', error)
     }
   }
 }
