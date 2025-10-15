@@ -64,7 +64,7 @@ export const useCardVault = ({ baseUrl = 'https://api.sqala.tech/core/v1', publi
       const response = await fetch(`${baseUrl}/card-vaults?publicKey=${publicKey}`, {
         method: 'POST',
         headers: {
-          'content-type': 'application/json',
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify(request),
       })
