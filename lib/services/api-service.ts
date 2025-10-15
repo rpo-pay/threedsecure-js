@@ -90,7 +90,7 @@ export class ApiService {
     const response = await fetch(`${this.baseUrl}/${parameters.id}/browser?publicKey=${this.publicKey}`, {
       method: 'PATCH',
       headers: {
-        'Content-Type': 'application/json',
+        'content-type': 'application/json',
       },
       body: JSON.stringify(browser),
     })
